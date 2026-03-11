@@ -1,15 +1,15 @@
 # System Spec Inspector
 
-A lightweight desktop tool for quickly inspecting system hardware specifications such as CPU, RAM, storage devices, and GPU memory on Windows systems.
+System Spec Inspector is a lightweight desktop tool for quickly inspecting hardware specifications such as CPU, RAM, storage devices, and GPU memory on Windows systems.
 
 The tool collects system information using WMI and presents it in a readable format.  
-Various defensive and fallback mechanisms are implemented to ensure stable operation across different Windows environments.
+It is designed to operate reliably across different Windows environments by incorporating defensive handling and fallback logic.
 
 ---
 
 ## Purpose
 
-Quickly check basic hardware specifications of a PC.
+Provide a quick and convenient way to inspect the basic hardware specifications of a Windows PC.
 
 ---
 
@@ -22,10 +22,10 @@ Quickly check basic hardware specifications of a PC.
 
 ## Technical Notes
 
-- Python 3.7 (for Windows 7 compatibility)
-- PyQt5
+- Python 3.7 (maintained for Windows 7 compatibility)
+- PyQt5-based desktop interface
 - WMI-based system specification collection
-- Multiple defensive / fallback logic paths for reliability
+- Defensive handling and multiple fallback logic paths for reliability across different environments
 
 ---
 
@@ -37,7 +37,7 @@ Quickly check basic hardware specifications of a PC.
 
 ### v1.4
 - Improved UI stability across Windows 7/10/11 DPI scaling environments
-- Added initial loading overlay for better startup experience
+- Added initial loading overlay for smoother startup experience
 - Improved RAM brand detection using WMI/SMBIOS strings and PartNumber patterns
 - Refactored RAM specification display logic
   - Added compression logic for duplicate modules (xN format)
@@ -48,7 +48,7 @@ Quickly check basic hardware specifications of a PC.
 ### v1.3
 - Internal architecture refactoring
 - Separated collector / formatter responsibilities following SOLID principles
-- Reduced redundant WMI connections to improve collection performance
+- Reduced redundant WMI connections to improve data collection performance
 
 ### v1.2
 - Added GPU VRAM detection using DXGI
