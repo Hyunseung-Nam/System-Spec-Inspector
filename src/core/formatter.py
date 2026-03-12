@@ -60,6 +60,24 @@ def format_storage_lines(storage_items: list[str]) -> str:
     return "\n".join(storage_items)
 
 
+def _append_optional_list_section(lines: list[str], label: str, items: list[str] | None) -> None:
+    if items is None:
+        lines.append(f"{label} : {INFO_NOT_PROVIDED}")
+        return
+    if items:
+        lines.append(f"{label} :")
+        for item in items:
+            lines.append(f"  {item}")
+        return
+    lines.append(f"{label} : {NOT_INSTALLED}")
+
+
+def _to_html_list_items(items: list[str] | None) -> list[str]:
+    if items is None:
+        return [INFO_NOT_PROVIDED]
+    return items
+
+
 def format_specs_text(specs: dict) -> str:
     lines = []
     lines.append(f"CPU : {safe_str(specs.get('cpu'))}")
@@ -86,36 +104,15 @@ def format_specs_text(specs: dict) -> str:
     lines.append("")
 
     vga_items = specs.get("vga", [])
-    if vga_items is None:
-        lines.append(f"VGA : {INFO_NOT_PROVIDED}")
-    elif vga_items:
-        lines.append("VGA :")
-        for vga in vga_items:
-            lines.append(f"  {vga}")
-    else:
-        lines.append(f"VGA : {NOT_INSTALLED}")
+    _append_optional_list_section(lines, "VGA", vga_items)
     lines.append("")
 
     ssd_items = specs.get("ssd", [])
-    if ssd_items is None:
-        lines.append(f"SSD : {INFO_NOT_PROVIDED}")
-    elif ssd_items:
-        lines.append("SSD :")
-        for ssd in ssd_items:
-            lines.append(f"  {ssd}")
-    else:
-        lines.append(f"SSD : {NOT_INSTALLED}")
+    _append_optional_list_section(lines, "SSD", ssd_items)
     lines.append("")
 
     hdd_items = specs.get("hdd", [])
-    if hdd_items is None:
-        lines.append(f"HDD : {INFO_NOT_PROVIDED}")
-    elif hdd_items:
-        lines.append("HDD :")
-        for hdd in hdd_items:
-            lines.append(f"  {hdd}")
-    else:
-        lines.append(f"HDD : {NOT_INSTALLED}")
+    _append_optional_list_section(lines, "HDD", hdd_items)
 
     return "\n".join(lines)
 
@@ -240,19 +237,13 @@ tr.sep-row td {{
 
     html += _render_single_row("M/B", spec.get("mainboard"), add_sep=True)
 
-    vga_items = spec.get("vga", [])
-    if vga_items is None:
-        vga_items = [INFO_NOT_PROVIDED]
+    vga_items = _to_html_list_items(spec.get("vga", []))
     html += _render_list_rows("VGA", vga_items, add_sep=True)
 
-    ssd_items = spec.get("ssd", [])
-    if ssd_items is None:
-        ssd_items = [INFO_NOT_PROVIDED]
+    ssd_items = _to_html_list_items(spec.get("ssd", []))
     html += _render_list_rows("SSD", ssd_items, add_sep=True)
 
-    hdd_items = spec.get("hdd", [])
-    if hdd_items is None:
-        hdd_items = [INFO_NOT_PROVIDED]
+    hdd_items = _to_html_list_items(spec.get("hdd", []))
     html += _render_list_rows("HDD", hdd_items, add_sep=False)
 
     return html

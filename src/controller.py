@@ -1,4 +1,4 @@
-﻿# 본 소스코드는 내부 사용 및 유지보수 목적에 한해 제공됩니다.
+# 본 소스코드는 내부 사용 및 유지보수 목적에 한해 제공됩니다.
 # 무단 재배포 및 상업적 재사용은 허용되지 않습니다.
 
 from __future__ import annotations
@@ -60,11 +60,9 @@ class Controller:
 
     def on_save_specs_clicked(self) -> None:
         try:
-            if not self.current_specs:
-                show_information(self.view, "알림", "먼저 PC 사양을 수집해 주세요.")
+            text = self._get_formatted_specs_text_or_notify()
+            if text is None:
                 return
-
-            text = self._spec_formatter.format_specs_text(self.current_specs)
             default_name = f"PC_Spec_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
             file_path, _ = QFileDialog.getSaveFileName(
                 self.view,
@@ -90,11 +88,9 @@ class Controller:
 
     def on_copy_specs_clicked(self) -> None:
         try:
-            if not self.current_specs:
-                show_information(self.view, "알림", "먼저 PC 사양을 수집해 주세요.")
+            text = self._get_formatted_specs_text_or_notify()
+            if text is None:
                 return
-
-            text = self._spec_formatter.format_specs_text(self.current_specs)
             clipboard = QApplication.clipboard()
             clipboard.setText(text)
 
@@ -129,3 +125,9 @@ class Controller:
     def _update_last_updated_time(self) -> None:
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.view.set_last_updated_text(f"마지막 수집: {stamp}")
+
+    def _get_formatted_specs_text_or_notify(self) -> str | None:
+        if not self.current_specs:
+            show_information(self.view, "알림", "먼저 PC 사양을 수집해 주세요.")
+            return None
+        return self._spec_formatter.format_specs_text(self.current_specs)

@@ -15,6 +15,7 @@ Windows WMI, platform, psutil을 사용하여 CPU/RAM/M/B/VGA/SSD/HDD 정보를 
 import logging
 import platform
 import psutil
+from typing import Any
 
 from core.ram_brand import resolve_ram_brand_display
 
@@ -357,6 +358,35 @@ def collect_baseboard(wmi_conn=None, wmi_available: bool | None = None) -> str |
     return None
 
 
+def _gpu_memory_label(adapter_ram: Any, name: str) -> str:
+    if not adapter_ram:
+        logger.info(f"GPU: AdapterRAM 미제공/0 | Name={name}")
+        return ""
+
+    if adapter_ram <= 0 or adapter_ram < (1024 ** 3):
+        logger.info(f"GPU: AdapterRAM 비정상 값 | {adapter_ram} | Name={name}")
+        return ""
+
+    memory_gb = adapter_ram / (1024 ** 3)
+    return f"{memory_gb:.0f}GB"
+
+
+def _gpu_manufacturer(gpu: Any) -> str:
+    if hasattr(gpu, "AdapterCompatibility") and gpu.AdapterCompatibility:
+        return str(gpu.AdapterCompatibility).strip()
+    return ""
+
+
+def _build_gpu_display_string(name: str, memory_str: str, manufacturer: str) -> str:
+    if memory_str and manufacturer:
+        return f"{name} ({memory_str} / {manufacturer})"
+    if memory_str:
+        return f"{name} ({memory_str})"
+    if manufacturer:
+        return f"{name} ({manufacturer})"
+    return name
+
+
 def collect_gpu(wmi_conn=None, wmi_available: bool | None = None) -> list[str] | None:
     """
     GPU 정보 수집
@@ -411,30 +441,9 @@ def collect_gpu(wmi_conn=None, wmi_available: bool | None = None) -> list[str] |
                 try:
                     name = (gpu.Name or "").strip() or INFO_NOT_PROVIDED
                     adapter_ram = gpu.AdapterRAM or 0
-                    if adapter_ram:
-                        if adapter_ram <= 0 or adapter_ram < (1024 ** 3):
-                            logger.info(f"GPU: AdapterRAM 비정상 값 | {adapter_ram} | Name={name}")
-                            memory_str = ""
-                        else:
-                            memory_gb = adapter_ram / (1024 ** 3)
-                            memory_str = f"{memory_gb:.0f}GB"
-                    else:
-                        logger.info(f"GPU: AdapterRAM 미제공/0 | Name={name}")
-                        memory_str = ""
-                    
-                    manufacturer = ""
-                    if hasattr(gpu, 'AdapterCompatibility') and gpu.AdapterCompatibility:
-                        manufacturer = str(gpu.AdapterCompatibility).strip()
-                    
-                    if memory_str and manufacturer:
-                        gpu_str = f"{name} ({memory_str} / {manufacturer})"
-                    elif memory_str:
-                        gpu_str = f"{name} ({memory_str})"
-                    elif manufacturer:
-                        gpu_str = f"{name} ({manufacturer})"
-                    else:
-                        gpu_str = name
-                    
+                    memory_str = _gpu_memory_label(adapter_ram, name)
+                    manufacturer = _gpu_manufacturer(gpu)
+                    gpu_str = _build_gpu_display_string(name, memory_str, manufacturer)
                     gpu_list.append(gpu_str)
                 except Exception as e:
                     logger.warning(f"GPU 정보 수집 중 오류: {e}")
@@ -447,6 +456,67 @@ def collect_gpu(wmi_conn=None, wmi_available: bool | None = None) -> list[str] |
     if wmi_attempted:
         return [INFO_NOT_PROVIDED]
     return None
+
+
+def _build_storage_display_string(disk: Any) -> tuple[str, str]:
+    name = getattr(disk, "FriendlyName", None) or getattr(disk, "Model", None) or "알 수 없음"
+    name = str(name).strip() if name else "알 수 없음"
+    size = getattr(disk, "Size", None)
+    size_gb = (int(size) / BYTES_PER_GB) if size is not None else 0.0
+    return name, f"{name} ({size_gb:.2f}GB)"
+
+
+def _append_disk_by_media_type(
+    name: str,
+    storage_str: str,
+    media_type: Any,
+    ssd_list: list[str],
+    hdd_list: list[str],
+) -> bool:
+    if media_type == MEDIA_TYPE_SSD:
+        ssd_list.append(storage_str)
+        logger.info(f"디스크 ({name}): MediaType={MEDIA_TYPE_SSD} → SSD")
+        return True
+
+    if media_type == MEDIA_TYPE_HDD:
+        hdd_list.append(storage_str)
+        logger.info(f"디스크 ({name}): MediaType={MEDIA_TYPE_HDD} → HDD")
+        return True
+
+    return False
+
+
+def _classify_unknown_media_disk(
+    name: str,
+    media_type: Any,
+    bus_type: Any,
+    seek_penalty: Any,
+    rotation_rate: Any,
+) -> bool | None:
+    is_ssd: bool | None = None
+
+    if bus_type == BUS_TYPE_NVME:
+        is_ssd = True
+        logger.info(f"디스크 ({name}): MediaType={media_type}, BusType=NVMe → SSD")
+
+    if is_ssd is None and seek_penalty is False:
+        is_ssd = True
+        logger.info(f"디스크 ({name}): MediaType={media_type}, SeekPenalty=False → SSD")
+
+    if is_ssd is None and rotation_rate is not None:
+        try:
+            rotation_rate_int = int(rotation_rate)
+            if rotation_rate_int >= ROTATION_RATE_HDD_THRESHOLD:
+                is_ssd = False
+                logger.info(
+                    f"디스크 ({name}): MediaType={media_type}, RotationRate={rotation_rate_int} → HDD"
+                )
+        except (ValueError, TypeError) as e:
+            logger.debug(
+                f"RotationRate 파싱 실패: {rotation_rate} ({type(rotation_rate)}): {e}"
+            )
+
+    return is_ssd
 
 
 def collect_storage(
@@ -490,53 +560,24 @@ def collect_storage(
 
         for disk in disks:
             try:
-                name = getattr(disk, "FriendlyName", None) or getattr(disk, "Model", None) or "알 수 없음"
-                name = str(name).strip() if name else "알 수 없음"
-
-                size = getattr(disk, "Size", None)
-                size_gb = (int(size) / BYTES_PER_GB) if size is not None else 0.0
-
-                storage_str = f"{name} ({size_gb:.2f}GB)"
+                name, storage_str = _build_storage_display_string(disk)
 
                 media_type = getattr(disk, "MediaType", None)
 
-                if media_type == MEDIA_TYPE_SSD:
-                    ssd_list.append(storage_str)
-                    logger.info(f"디스크 ({name}): MediaType={MEDIA_TYPE_SSD} → SSD")
-                    continue
-
-                if media_type == MEDIA_TYPE_HDD:
-                    hdd_list.append(storage_str)
-                    logger.info(f"디스크 ({name}): MediaType={MEDIA_TYPE_HDD} → HDD")
+                if _append_disk_by_media_type(name, storage_str, media_type, ssd_list, hdd_list):
                     continue
 
                 if media_type in (MEDIA_TYPE_UNKNOWN, None):
                     bus_type = getattr(disk, "BusType", None)
                     seek_penalty = getattr(disk, "SeekPenalty", None)
                     rotation_rate = getattr(disk, "RotationRate", None)
-
-                    is_ssd: bool | None = None
-
-                    if bus_type == BUS_TYPE_NVME:
-                        is_ssd = True
-                        logger.info(f"디스크 ({name}): MediaType={media_type}, BusType=NVMe → SSD")
-
-                    if is_ssd is None and seek_penalty is False:
-                        is_ssd = True
-                        logger.info(f"디스크 ({name}): MediaType={media_type}, SeekPenalty=False → SSD")
-
-                    if is_ssd is None and rotation_rate is not None:
-                        try:
-                            rotation_rate_int = int(rotation_rate)
-                            if rotation_rate_int >= ROTATION_RATE_HDD_THRESHOLD:
-                                is_ssd = False
-                                logger.info(
-                                    f"디스크 ({name}): MediaType={media_type}, RotationRate={rotation_rate_int} → HDD"
-                                )
-                        except (ValueError, TypeError) as e:
-                            logger.debug(
-                                f"RotationRate 파싱 실패: {rotation_rate} ({type(rotation_rate)}): {e}"
-                            )
+                    is_ssd = _classify_unknown_media_disk(
+                        name=name,
+                        media_type=media_type,
+                        bus_type=bus_type,
+                        seek_penalty=seek_penalty,
+                        rotation_rate=rotation_rate,
+                    )
 
                     if is_ssd is True:
                         ssd_list.append(storage_str)

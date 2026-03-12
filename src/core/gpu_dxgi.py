@@ -178,11 +178,11 @@ def collect_gpu_dxgi_raw(logger=None) -> list[DxgiGpu]:
                 if logger:
                     logger.info(f"GPU(DXGI): GetDesc 실패 idx={i} hr=0x{hr_desc & 0xFFFFFFFF:08X}")
 
-            _com_release(adapter)
+            _com_release(adapter, logger=logger)
             i += 1
 
     finally:
-        _com_release(factory)
+        _com_release(factory, logger=logger)
 
     if logger:
         logger.info(f"GPU(DXGI): 어댑터 {len(gpus)}개 감지")
@@ -260,7 +260,7 @@ class IUnknown(ctypes.Structure):
     _fields_ = [("lpVtbl", ctypes.POINTER(IUnknownVTable))]
 
 
-def _com_release(ptr) -> None:
+def _com_release(ptr, logger=None) -> None:
     """
     COM 객체 Release를 안전하게 호출한다.
 
@@ -278,7 +278,8 @@ def _com_release(ptr) -> None:
         )
         release_fn(ctypes.cast(ptr, ctypes.c_void_p))
     except Exception:
-        pass
+        if logger:
+            logger.debug("GPU(DXGI): COM Release 중 예외 발생", exc_info=True)
 
 
 class IDXGIAdapterVTable(ctypes.Structure):

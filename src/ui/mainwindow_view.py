@@ -10,6 +10,34 @@ from .ui_mainwindow import Ui_MainWindow
 
 logger = logging.getLogger(__name__)
 
+UI_FONT_FAMILY = "Noto Sans KR"
+UI_WINDOW_TITLE = "PC사양 확인 프로그램"
+UI_SUBTITLE_TEXT = "현장 점검부터 견적 전 확인까지, 한 화면에서 빠르게 확인하세요."
+UI_LAST_UPDATED_PLACEHOLDER = "마지막 수집: 아직 수집되지 않음"
+UI_WARNING_TEXT = "* 일부 PC 환경에서는 OS/드라이버 정책에 따라 특정 항목이 비어 있을 수 있습니다."
+UI_FIXED_WINDOW_SIZE = (780, 800)
+UI_TEXT_SPECS_STYLE = (
+    "QTextEdit {"
+    "background: #ffffff;"
+    "border: 1px solid #d6deeb;"
+    "border-radius: 12px;"
+    "padding: 14px 24px;"
+    "selection-background-color: #c4ddff;"
+    "selection-color: #0f172a;"
+    "}"
+    "QTextEdit::viewport { background: transparent; }"
+    "QTextEdit:focus { border: 1px solid #2a6fd8; }"
+)
+UI_BUTTON_BASE_STYLE = (
+    "QPushButton {"
+    "background-color: {bg}; color: {fg}; border: 1px solid {border};"
+    "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: {weight};"
+    "font-family: '{font_family}';"
+    "}"
+    "QPushButton:hover { background-color: {hover_bg}; border-color: {hover_border}; }"
+    "QPushButton:pressed { background-color: {pressed_bg}; border-color: {pressed_border}; }"
+)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -17,7 +45,7 @@ class MainWindow(QMainWindow):
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setFixedSize(780, 800)
+        self.setFixedSize(*UI_FIXED_WINDOW_SIZE)
 
         self._base_window_size = QSize()
         self._base_dpi = 96.0
@@ -27,7 +55,7 @@ class MainWindow(QMainWindow):
         self._loading_label: QLabel | None = None
         self._font_scale_excludes: set[QWidget] = set()
 
-        self.setWindowTitle("PC사양 확인 프로그램")
+        self.setWindowTitle(UI_WINDOW_TITLE)
         self.ui.labelTitle.setMargin(0)
 
         self._enhance_ui_layout()
@@ -48,11 +76,11 @@ class MainWindow(QMainWindow):
         logger.info("MainWindow 초기화 완료")
 
     def _enhance_ui_layout(self) -> None:
-        self.ui.labelTitle.setText("PC사양 확인 프로그램")
+        self.ui.labelTitle.setText(UI_WINDOW_TITLE)
         self.ui.labelTitle.setAlignment(Qt.AlignCenter)
         self.ui.labelTitle.setStyleSheet(
             "color: #0f172a; font-size: 22pt; font-weight: 700; letter-spacing: -0.4px;"
-            "font-family: 'Noto Sans KR';"
+            f"font-family: '{UI_FONT_FAMILY}';"
         )
         self.ui.labelTitle.setMaximumHeight(74)
         self.ui.horizontalLayout_6.setContentsMargins(0, 0, 0, 0)
@@ -61,35 +89,24 @@ class MainWindow(QMainWindow):
         self.ui.verticalLayout_3.setContentsMargins(56, 6, 56, 6)
 
         self.labelSubTitle = QLabel(
-            "현장 점검부터 견적 전 확인까지, 한 화면에서 빠르게 확인하세요.",
+            UI_SUBTITLE_TEXT,
             self.ui.contentArea,
         )
         self.labelSubTitle.setAlignment(Qt.AlignCenter)
         self.labelSubTitle.setStyleSheet(
-            "color: #475569; font-size: 10.2pt; font-family: 'Noto Sans KR';"
+            f"color: #475569; font-size: 10.2pt; font-family: '{UI_FONT_FAMILY}';"
         )
         self.ui.verticalLayout_5.insertWidget(1, self.labelSubTitle)
 
-        self.labelLastUpdated = QLabel("마지막 수집: 아직 수집되지 않음", self.ui.contentArea)
+        self.labelLastUpdated = QLabel(UI_LAST_UPDATED_PLACEHOLDER, self.ui.contentArea)
         self.labelLastUpdated.setAlignment(Qt.AlignCenter)
         self.labelLastUpdated.setStyleSheet(
-            "color: #64748b; font-size: 9.2pt; font-family: 'Noto Sans KR';"
+            f"color: #64748b; font-size: 9.2pt; font-family: '{UI_FONT_FAMILY}';"
             "padding: 2px 0 2px 0;"
         )
         self.ui.verticalLayout_5.insertWidget(2, self.labelLastUpdated)
 
-        self.ui.textSpecs.setStyleSheet(
-            "QTextEdit {"
-            "background: #ffffff;"
-            "border: 1px solid #d6deeb;"
-            "border-radius: 12px;"
-            "padding: 14px 24px;"
-            "selection-background-color: #c4ddff;"
-            "selection-color: #0f172a;"
-            "}"
-            "QTextEdit::viewport { background: transparent; }"
-            "QTextEdit:focus { border: 1px solid #2a6fd8; }"
-        )
+        self.ui.textSpecs.setStyleSheet(UI_TEXT_SPECS_STYLE)
         self.ui.textSpecs.setMinimumHeight(450)
         self.ui.textSpecs.setMaximumWidth(760)
 
@@ -101,31 +118,37 @@ class MainWindow(QMainWindow):
             button.setMinimumHeight(42)
 
         self.ui.btnRefreshSpecs.setStyleSheet(
-            "QPushButton {"
-            "background-color: #f8fafc; color: #334155; border: 1px solid #cbd5e1;"
-            "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: 600;"
-            "font-family: 'Noto Sans KR';"
-            "}"
-            "QPushButton:hover { background-color: #f1f5f9; border-color: #94a3b8; }"
-            "QPushButton:pressed { background-color: #e2e8f0; border-color: #64748b; }"
+            self._build_button_style(
+                bg="#f8fafc",
+                fg="#334155",
+                border="#cbd5e1",
+                hover_bg="#f1f5f9",
+                hover_border="#94a3b8",
+                pressed_bg="#e2e8f0",
+                pressed_border="#64748b",
+            )
         )
         self.ui.btnSaveSpecs.setStyleSheet(
-            "QPushButton {"
-            "background-color: #2a6fd8; color: #ffffff; border: 1px solid #2a6fd8;"
-            "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: 600;"
-            "font-family: 'Noto Sans KR';"
-            "}"
-            "QPushButton:hover { background-color: #245eb7; border-color: #245eb7; }"
-            "QPushButton:pressed { background-color: #1d4f98; border-color: #1d4f98; }"
+            self._build_button_style(
+                bg="#2a6fd8",
+                fg="#ffffff",
+                border="#2a6fd8",
+                hover_bg="#245eb7",
+                hover_border="#245eb7",
+                pressed_bg="#1d4f98",
+                pressed_border="#1d4f98",
+            )
         )
         self.ui.btnCopySpecs.setStyleSheet(
-            "QPushButton {"
-            "background-color: #1e293b; color: #ffffff; border: 1px solid #1e293b;"
-            "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: 600;"
-            "font-family: 'Noto Sans KR';"
-            "}"
-            "QPushButton:hover { background-color: #334155; border-color: #334155; }"
-            "QPushButton:pressed { background-color: #0f172a; border-color: #0f172a; }"
+            self._build_button_style(
+                bg="#1e293b",
+                fg="#ffffff",
+                border="#1e293b",
+                hover_bg="#334155",
+                hover_border="#334155",
+                pressed_bg="#0f172a",
+                pressed_border="#0f172a",
+            )
         )
 
         self.ui.horizontalLayout_7.insertWidget(1, self.ui.btnRefreshSpecs)
@@ -137,11 +160,33 @@ class MainWindow(QMainWindow):
         self.ui.verticalLayout_5.setStretch(3, 1)
         self.ui.verticalLayout_5.setStretch(4, 0)
 
-        self.ui.labelComment.setText(
-            "* 일부 PC 환경에서는 OS/드라이버 정책에 따라 특정 항목이 비어 있을 수 있습니다."
-        )
+        self.ui.labelComment.setText(UI_WARNING_TEXT)
         self.ui.labelComment.setStyleSheet(
-            "color: #667085; font-size: 9.4pt; font-family: 'Noto Sans KR';"
+            f"color: #667085; font-size: 9.4pt; font-family: '{UI_FONT_FAMILY}';"
+        )
+
+    def _build_button_style(
+        self,
+        *,
+        bg: str,
+        fg: str,
+        border: str,
+        hover_bg: str,
+        hover_border: str,
+        pressed_bg: str,
+        pressed_border: str,
+        weight: str = "600",
+    ) -> str:
+        return UI_BUTTON_BASE_STYLE.format(
+            bg=bg,
+            fg=fg,
+            border=border,
+            hover_bg=hover_bg,
+            hover_border=hover_border,
+            pressed_bg=pressed_bg,
+            pressed_border=pressed_border,
+            weight=weight,
+            font_family=UI_FONT_FAMILY,
         )
 
     def set_last_updated_text(self, text: str) -> None:
