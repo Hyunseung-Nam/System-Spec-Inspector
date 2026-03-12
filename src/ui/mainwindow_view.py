@@ -1,48 +1,24 @@
-# 본 소스코드는 내부 사용 및 유지보수 목적에 한해 제공됩니다.
-# 무단 재배포 및 상업적 재사용은 허용되지 않습니다.
-"""
-메인 윈도우의 View를 구성하고 정적 리소스를 초기화한다.
-다양한 실행 환경에서 UI 표시가 일관되게 유지되도록 보정한다.
-
-- main.py에서 생성되어 Controller와 연결될 때 사용
-- MainWindow.__init__()에서 UI 로드 및 창 설정 수행
-"""
-
 from __future__ import annotations
 
 import logging
 import re
-from PyQt5.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget
-from PyQt5.QtGui import QIcon, QFont, QResizeEvent
 from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QResizeEvent
+from PyQt5.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton
+
 from .ui_mainwindow import Ui_MainWindow
 
 logger = logging.getLogger(__name__)
 
+
 class MainWindow(QMainWindow):
-    """
-    메인 윈도우의 UI를 구성하고 표시를 보정한다.
-
-    - 책임: UI 위젯 구성, 정적 리소스 로드, 폰트/스케일 보정
-    - 비책임: 사양 수집, 포맷팅, 이벤트 처리
-    - 사용처: main.py에서 생성되어 Controller에 전달
-    """
     def __init__(self):
-        """
-        메인 윈도우 UI를 초기화한다.
-
-        Args:
-            없음
-
-        Returns:
-            None
-        """
         super().__init__()
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.resize(720, 820)
-        
+        self.setFixedSize(780, 800)
+
         self._base_window_size = QSize()
         self._base_dpi = 96.0
         self._font_scale_targets: list[dict] = []
@@ -50,20 +26,18 @@ class MainWindow(QMainWindow):
         self._loading_overlay: QWidget | None = None
         self._loading_label: QLabel | None = None
         self._font_scale_excludes: set[QWidget] = set()
-        self.ui.btnCopySpecs.setCursor(Qt.PointingHandCursor)
-        
-        self.setWindowTitle("PC 사양 확인 프로그램")
 
+        self.setWindowTitle("PC사양 확인 프로그램")
         self.ui.labelTitle.setMargin(0)
+
+        self._enhance_ui_layout()
 
         self.ui.textSpecs.setReadOnly(True)
         self.ui.textSpecs.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.ui.textSpecs.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         self._base_dpi = float(self.logicalDpiX())
-
         self._normalize_stylesheet_font_sizes(self._font_scale_widget_list())
-
         self._set_font_scale_excludes()
 
         self._base_window_size = self.size()
@@ -72,19 +46,108 @@ class MainWindow(QMainWindow):
         )
 
         logger.info("MainWindow 초기화 완료")
-        
 
+    def _enhance_ui_layout(self) -> None:
+        self.ui.labelTitle.setText("PC사양 확인 프로그램")
+        self.ui.labelTitle.setAlignment(Qt.AlignCenter)
+        self.ui.labelTitle.setStyleSheet(
+            "color: #0f172a; font-size: 22pt; font-weight: 700; letter-spacing: -0.4px;"
+            "font-family: 'Noto Sans KR';"
+        )
+        self.ui.labelTitle.setMaximumHeight(74)
+        self.ui.horizontalLayout_6.setContentsMargins(0, 0, 0, 0)
+        self.ui.horizontalLayout_6.setSpacing(0)
+        self.ui.verticalLayout_5.setSpacing(6)
+        self.ui.verticalLayout_3.setContentsMargins(56, 6, 56, 6)
+
+        self.labelSubTitle = QLabel(
+            "현장 점검부터 견적 전 확인까지, 한 화면에서 빠르게 확인하세요.",
+            self.ui.contentArea,
+        )
+        self.labelSubTitle.setAlignment(Qt.AlignCenter)
+        self.labelSubTitle.setStyleSheet(
+            "color: #475569; font-size: 10.2pt; font-family: 'Noto Sans KR';"
+        )
+        self.ui.verticalLayout_5.insertWidget(1, self.labelSubTitle)
+
+        self.labelLastUpdated = QLabel("마지막 수집: 아직 수집되지 않음", self.ui.contentArea)
+        self.labelLastUpdated.setAlignment(Qt.AlignCenter)
+        self.labelLastUpdated.setStyleSheet(
+            "color: #64748b; font-size: 9.2pt; font-family: 'Noto Sans KR';"
+            "padding: 2px 0 2px 0;"
+        )
+        self.ui.verticalLayout_5.insertWidget(2, self.labelLastUpdated)
+
+        self.ui.textSpecs.setStyleSheet(
+            "QTextEdit {"
+            "background: #ffffff;"
+            "border: 1px solid #d6deeb;"
+            "border-radius: 12px;"
+            "padding: 14px 24px;"
+            "selection-background-color: #c4ddff;"
+            "selection-color: #0f172a;"
+            "}"
+            "QTextEdit::viewport { background: transparent; }"
+            "QTextEdit:focus { border: 1px solid #2a6fd8; }"
+        )
+        self.ui.textSpecs.setMinimumHeight(450)
+        self.ui.textSpecs.setMaximumWidth(760)
+
+        self.ui.btnRefreshSpecs = QPushButton("다시 수집", self.ui.contentArea)
+        self.ui.btnSaveSpecs = QPushButton("사양 저장", self.ui.contentArea)
+
+        for button in [self.ui.btnRefreshSpecs, self.ui.btnSaveSpecs, self.ui.btnCopySpecs]:
+            button.setCursor(Qt.PointingHandCursor)
+            button.setMinimumHeight(42)
+
+        self.ui.btnRefreshSpecs.setStyleSheet(
+            "QPushButton {"
+            "background-color: #f8fafc; color: #334155; border: 1px solid #cbd5e1;"
+            "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: 600;"
+            "font-family: 'Noto Sans KR';"
+            "}"
+            "QPushButton:hover { background-color: #f1f5f9; border-color: #94a3b8; }"
+            "QPushButton:pressed { background-color: #e2e8f0; border-color: #64748b; }"
+        )
+        self.ui.btnSaveSpecs.setStyleSheet(
+            "QPushButton {"
+            "background-color: #2a6fd8; color: #ffffff; border: 1px solid #2a6fd8;"
+            "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: 600;"
+            "font-family: 'Noto Sans KR';"
+            "}"
+            "QPushButton:hover { background-color: #245eb7; border-color: #245eb7; }"
+            "QPushButton:pressed { background-color: #1d4f98; border-color: #1d4f98; }"
+        )
+        self.ui.btnCopySpecs.setStyleSheet(
+            "QPushButton {"
+            "background-color: #1e293b; color: #ffffff; border: 1px solid #1e293b;"
+            "border-radius: 10px; padding: 8px 18px; font-size: 10.5pt; font-weight: 600;"
+            "font-family: 'Noto Sans KR';"
+            "}"
+            "QPushButton:hover { background-color: #334155; border-color: #334155; }"
+            "QPushButton:pressed { background-color: #0f172a; border-color: #0f172a; }"
+        )
+
+        self.ui.horizontalLayout_7.insertWidget(1, self.ui.btnRefreshSpecs)
+        self.ui.horizontalLayout_7.insertWidget(2, self.ui.btnSaveSpecs)
+        self.ui.horizontalLayout_7.setSpacing(10)
+        self.ui.verticalLayout_5.setStretch(0, 0)
+        self.ui.verticalLayout_5.setStretch(1, 0)
+        self.ui.verticalLayout_5.setStretch(2, 0)
+        self.ui.verticalLayout_5.setStretch(3, 1)
+        self.ui.verticalLayout_5.setStretch(4, 0)
+
+        self.ui.labelComment.setText(
+            "* 일부 PC 환경에서는 OS/드라이버 정책에 따라 특정 항목이 비어 있을 수 있습니다."
+        )
+        self.ui.labelComment.setStyleSheet(
+            "color: #667085; font-size: 9.4pt; font-family: 'Noto Sans KR';"
+        )
+
+    def set_last_updated_text(self, text: str) -> None:
+        self.labelLastUpdated.setText(text)
 
     def _normalize_stylesheet_font_sizes(self, widgets: list) -> None:
-        """
-        DPI 차이로 인한 폰트 크기 차이를 줄이기 위해 pt를 px로 변환한다.
-
-        Args:
-            widgets: font-size 스타일을 보정할 위젯 목록
-
-        Returns:
-            None
-        """
         base_dpi = self._base_dpi
         for widget in widgets:
             style = widget.styleSheet()
@@ -106,44 +169,20 @@ class MainWindow(QMainWindow):
                 widget.setStyleSheet(new_style)
 
     def _font_scale_widget_list(self, include_sidebar: bool = False) -> list[QWidget]:
-        """
-        폰트 스케일 보정 대상 위젯 목록을 반환한다.
-
-        Args:
-            include_sidebar: 사이드바 버튼 포함 여부
-
-        Returns:
-            list[QWidget]: 폰트 스케일 보정 대상 위젯 목록
-        """
-        widgets = [
+        return [
             self.ui.labelTitle,
+            self.labelSubTitle,
+            self.labelLastUpdated,
             self.ui.labelComment,
+            self.ui.btnRefreshSpecs,
+            self.ui.btnSaveSpecs,
             self.ui.btnCopySpecs,
         ]
-        return widgets
 
     def _set_font_scale_excludes(self) -> None:
-        """
-        폰트 스케일 제외 대상 위젯을 설정한다.
-
-        Args:
-            없음
-
-        Returns:
-            None
-        """
         self._font_scale_excludes = set()
 
     def _build_font_scale_targets(self, widgets: list) -> list[dict]:
-        """
-        폰트 크기 비율 보정을 위한 기준 정보를 수집한다.
-
-        Args:
-            widgets: 폰트 크기 보정을 적용할 위젯 목록
-
-        Returns:
-            list[dict]: 위젯별 기준 폰트/스타일 정보 목록
-        """
         targets = []
         base_dpi = self._base_dpi
         pattern = re.compile(r"(font-size\\s*:\\s*)(\\d+(?:\\.\\d+)?)(px|pt)", re.IGNORECASE)
@@ -176,15 +215,6 @@ class MainWindow(QMainWindow):
         return targets
 
     def _get_pixel_font_size(self, font: QFont) -> float:
-        """
-        폰트의 픽셀 크기를 반환한다.
-
-        Args:
-            font: 크기를 조회할 폰트
-
-        Returns:
-            float: 픽셀 단위 폰트 크기
-        """
         if font.pixelSize() > 0:
             return float(font.pixelSize())
         point_size = font.pointSizeF()
@@ -193,15 +223,6 @@ class MainWindow(QMainWindow):
         return point_size * self._base_dpi / 72
 
     def _apply_scaled_fonts(self, scale: float) -> None:
-        """
-        기준 폰트 크기에 스케일을 적용한다.
-
-        Args:
-            scale: 기준 대비 스케일 값
-
-        Returns:
-            None
-        """
         pattern = re.compile(r"(font-size\\s*:\\s*)(\\d+(?:\\.\\d+)?)(px|pt)", re.IGNORECASE)
 
         for target in self._font_scale_targets:
@@ -223,29 +244,11 @@ class MainWindow(QMainWindow):
                 widget.setFont(font)
 
     def set_specs_html(self, html: str) -> None:
-        """
-        사양 표시 HTML을 저장하고 현재 크기에 맞춰 표시한다.
-
-        Args:
-            html: 기본 크기 기준의 HTML 문자열
-
-        Returns:
-            None
-        """
         self._specs_html_base = html
         scale = self._compute_ui_scale()
         self._apply_scaled_specs_html(scale)
 
     def show_loading_overlay(self, message: str = "로딩 중입니다...") -> None:
-        """
-        초기 로딩용 오버레이를 표시한다.
-
-        Args:
-            message: 표시할 로딩 메시지
-
-        Returns:
-            None
-        """
         if not self._loading_overlay:
             self._loading_overlay = QWidget(self.centralWidget())
             self._loading_overlay.setStyleSheet("background-color: #F5F7FA;")
@@ -267,28 +270,10 @@ class MainWindow(QMainWindow):
         self._loading_overlay.raise_()
 
     def hide_loading_overlay(self) -> None:
-        """
-        로딩 오버레이를 숨긴다.
-
-        Args:
-            없음
-
-        Returns:
-            None
-        """
         if self._loading_overlay:
             self._loading_overlay.hide()
 
     def apply_font_refresh(self) -> None:
-        """
-        폰트 로딩 이후 기준 값을 재계산하고 UI를 갱신한다.
-
-        Args:
-            없음
-
-        Returns:
-            None
-        """
         self._base_dpi = float(self.logicalDpiX())
         self._normalize_stylesheet_font_sizes(self._font_scale_widget_list())
         self._set_font_scale_excludes()
@@ -300,15 +285,6 @@ class MainWindow(QMainWindow):
         self._apply_scaled_specs_html(1.0)
 
     def _update_loading_overlay_geometry(self) -> None:
-        """
-        로딩 오버레이의 크기를 중앙 위젯에 맞춘다.
-
-        Args:
-            없음
-
-        Returns:
-            None
-        """
         if not self._loading_overlay:
             return
         central = self.centralWidget()
@@ -316,15 +292,6 @@ class MainWindow(QMainWindow):
             self._loading_overlay.setGeometry(central.rect())
 
     def _apply_scaled_specs_html(self, scale: float) -> None:
-        """
-        HTML 폰트 크기를 스케일에 맞게 조정한다.
-
-        Args:
-            scale: 기준 대비 스케일 값
-
-        Returns:
-            None
-        """
         if not self._specs_html_base:
             return
 
@@ -339,23 +306,14 @@ class MainWindow(QMainWindow):
             self._specs_html_base,
             flags=re.IGNORECASE,
         )
-        adjusted_html = f"""
-        <div style="text-align:center;">
-            {adjusted_html}
-        </div>
-        """
+        adjusted_html = (
+            '<div style="max-width: 720px; margin: 0 auto; text-align: left;">'
+            f"{adjusted_html}"
+            "</div>"
+        )
         self.ui.textSpecs.setHtml(adjusted_html)
 
     def _compute_ui_scale(self) -> float:
-        """
-        현재 창 크기와 DPI를 기준으로 스케일을 계산한다.
-
-        Args:
-            없음
-
-        Returns:
-            float: 현재 UI 스케일 값
-        """
         scale = 1.0
         if self._base_window_size.width() > 0 and self._base_window_size.height() > 0:
             scale = min(
@@ -365,15 +323,6 @@ class MainWindow(QMainWindow):
         return scale * self._current_dpi_scale()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
-        """
-        창 크기 변경 시 폰트 비율을 유지한다.
-
-        Args:
-            event: 리사이즈 이벤트
-
-        Returns:
-            None
-        """
         if self._base_window_size.width() > 0 and self._base_window_size.height() > 0:
             scale = self._compute_ui_scale()
             self._apply_scaled_fonts(scale)
@@ -383,16 +332,6 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
 
     def _current_dpi_scale(self) -> float:
-        """
-        현재 DPI 스케일을 기준 DPI 대비 비율로 계산한다.
-
-        Args:
-            없음
-
-        Returns:
-            float: 현재 DPI 스케일 비율
-        """
         if self._base_dpi <= 0:
             return 1.0
         return float(self.logicalDpiX()) / self._base_dpi
-

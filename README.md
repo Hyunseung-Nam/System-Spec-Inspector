@@ -60,3 +60,7 @@ Provide a quick and convenient way to inspect the basic hardware specifications 
 ### v1.0
 - Initial release
 - Basic hardware specification inspection (CPU, RAM, storage devices)
+
+#스크린샷 추가
+
+![프로그램 스크린샷](docs/image.png)
