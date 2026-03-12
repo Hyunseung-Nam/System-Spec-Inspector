@@ -1,7 +1,5 @@
 # System Spec Inspector
 
-![프로그램 스크린샷](docs/image.png)
-
 System Spec Inspector is a lightweight desktop tool for quickly inspecting hardware specifications such as CPU, RAM, storage devices, and GPU memory on Windows systems.
 
 The tool collects system information using WMI and presents it in a readable format.  
