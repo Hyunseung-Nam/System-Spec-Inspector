@@ -1,5 +1,7 @@
 # System Spec Inspector
 
+![프로그램 스크린샷](docs/image.png)
+
 System Spec Inspector is a lightweight desktop tool for quickly inspecting hardware specifications such as CPU, RAM, storage devices, and GPU memory on Windows systems.
 
 The tool collects system information using WMI and presents it in a readable format.  
@@ -31,6 +33,11 @@ Provide a quick and convenient way to inspect the basic hardware specifications 
 
 ## Version History
 
+### v1.6
+- Safe internal refactoring with behavior-preserving changes
+- Reduced duplicated logic in UI/controller/formatter/collector modules
+- Improved internal exception logging consistency in DXGI GPU collection
+
 ### v1.5
 - Added PC type classification logic
 - Improved onboard / replaceable RAM detection
@@ -60,7 +67,3 @@ Provide a quick and convenient way to inspect the basic hardware specifications 
 ### v1.0
 - Initial release
 - Basic hardware specification inspection (CPU, RAM, storage devices)
-
-#스크린샷 추가
-
-![프로그램 스크린샷](docs/image.png)
